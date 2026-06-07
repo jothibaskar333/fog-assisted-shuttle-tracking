@@ -50,7 +50,7 @@ Unlike conventional cloud-only tracking solutions, this system performs movement
 * Chart.js
 
 ## Project Structure
-
+```text
 fog-assisted-shuttle-tracking/
 │
 ├── cloud/
@@ -85,7 +85,7 @@ fog-assisted-shuttle-tracking/
 │   ├── shuttletrackerperf.png
 │
 └── README.md
-
+```
 ## Results
 
 The proposed Edge-Fog architecture demonstrated significant improvements over a traditional cloud-only approach:
