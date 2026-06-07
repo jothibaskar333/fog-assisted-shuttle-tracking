@@ -51,26 +51,40 @@ Unlike conventional cloud-only tracking solutions, this system performs movement
 
 ## Project Structure
 
-```text
 fog-assisted-shuttle-tracking/
 │
+├── cloud/
+│   └── cloud_client.py
+│
 ├── edge/
+│   ├── __init__.py
+│   ├── edge_filter.py
 │   └── edge_simulator.py
 │
 ├── fog/
+│   ├── __init__.py
+│   ├── eta_calculator.py
 │   └── fog_server.py
 │
-├── app/
+├── front-end/
+│   ├── __init__.py
 │   ├── app.py
-│   └── templates/
-│       └── index.html
+│   ├── templates/
+│   │   └── index.html
+│   └── static/
+│       ├── css/
+│       ├── js/
+│       ├── images/
+│       └── ...
 │
+├── metrics/
+│   └── performance_analysis.py
+|
 ├── docs/
-│
-├── requirements.txt
+│   ├──shuttletracker1.png
+│   ├── shuttletrackerperf.png
 │
 └── README.md
-```
 
 ## Results
 
@@ -89,4 +103,10 @@ The proposed Edge-Fog architecture demonstrated significant improvements over a 
 * Predictive analytics using machine learning
 * Traffic-aware ETA estimation
 
+## Dashboard
 
+![Dashboard](docs/shuttletracker1.png)
+
+## Performance Benchmark
+
+![Benchmark](docs/shuttletrackerperf.png)
