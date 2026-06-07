@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIT Campus Shuttle Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #111418;
+    --bg3: #181c22;
+    --border: #1f2730;
+    --border2: #2a3540;
+    --accent: #00e5a0;
+    --accent2: #0099ff;
+    --accent3: #ff6b35;
+    --warn: #ffd166;
+    --text: #c8d8e8;
+    --text2: #6a8098;
+    --text3: #3a5068;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Rajdhani', sans-serif;
+    --c1: #00e5a0;
+    --c2: #0099ff;
+    --c3: #ff6b35;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 34px; height: 34px; background: var(--accent);
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  }
+  .logo-icon svg { width: 20px; height: 20px; }
+  .logo-title { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: 0.04em; }
+  .logo-sub { font-size: 10px; font-family: var(--mono); color: var(--text2); letter-spacing: 0.1em; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .status-pill {
+    display: flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 11px; color: var(--text2);
+    padding: 5px 11px; border: 1px solid var(--border2);
+    border-radius: 20px; background: var(--bg3);
+  }
+  .status-pill .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 8px var(--accent);
+    animation: blink 2s ease-in-out infinite;
+  }
+  .status-pill.offline .dot { background: var(--text3); box-shadow: none; animation: none; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  #clock { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 0.08em; }
+
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    height: calc(100vh - 59px);
+  }
+
+  .left { display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+
+  .loc-bar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+  .loc-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text3); white-space: nowrap; }
+  .select-wrap { position: relative; flex: 0 0 180px; }
+  .select-wrap::after { content: '▾'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text2); pointer-events: none; font-size: 11px; }
+  select {
+    width: 100%; padding: 8px 28px 8px 10px;
+    border: 1px solid var(--border2); border-radius: 6px;
+    font-family: var(--sans); font-size: 14px; font-weight: 600;
+    color: var(--text); background: var(--bg3);
+    appearance: none; -webkit-appearance: none; outline: none;
+    cursor: pointer; transition: border-color 0.2s;
+  }
+  select:focus { border-color: var(--accent); }
+  .loc-hint { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+
+  .map-section {
+    flex: 1; padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    position: relative; overflow: hidden;
+  }
+  .section-tag {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--text3); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-tag::after { content:''; flex:1; height:1px; background: var(--border); }
+  #campus-map { width: 100%; height: calc(100% - 28px); }
+
+  .perf-section { height: 190px; padding: 14px 20px; }
+  #perf-canvas { width: 100% !important; height: 140px !important; }
+
+  .right { display: flex; flex-direction: column; background: var(--bg2); overflow: hidden; }
+
+  .cards-section { flex: 1; padding: 16px; overflow-y: auto; }
+  .cards-section::-webkit-scrollbar { width: 3px; }
+  .cards-section::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .shuttle-card {
+    border: 1px solid var(--border); border-radius: 10px;
+    margin-bottom: 10px; background: var(--bg3); overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .shuttle-card.c1 { border-left: 3px solid var(--c1); }
+  .shuttle-card.c2 { border-left: 3px solid var(--c2); }
+  .shuttle-card.c3 { border-left: 3px solid var(--c3); }
+
+  .card-top { display: flex; align-items: center; gap: 10px; padding: 10px 12px 6px; }
+  .card-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; animation: blink 2s ease-in-out infinite; }
+  .card-id { font-weight: 700; font-size: 13px; color: #fff; letter-spacing: 0.05em; }
+  .card-loc { font-family: var(--mono); font-size: 10px; color: var(--text2); margin-left: auto; text-align: right; }
+
+  .card-eta-row { display: flex; align-items: baseline; gap: 6px; padding: 4px 12px 6px; }
+  .eta-big { font-family: var(--mono); font-size: 32px; line-height: 1; font-weight: 400; transition: color 0.5s; }
+  .eta-unit { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+  .eta-sub { font-family: var(--mono); font-size: 10px; color: var(--text3); padding: 0 12px 10px; letter-spacing: 0.04em; }
+  .no-signal { font-family: var(--mono); font-size: 11px; color: var(--text3); padding: 6px 12px 10px; letter-spacing: 0.06em; }
+
+  .log-section {
+    border-top: 1px solid var(--border); padding: 12px 14px;
+    height: 160px; display: flex; flex-direction: column;
+  }
+  .log-title { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+  .log-entries { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+  .log-entries::-webkit-scrollbar { width: 2px; }
+  .log-entries::-webkit-scrollbar-thumb { background: var(--border2); }
+  .log-entry { display: flex; gap: 8px; font-family: var(--mono); font-size: 10px; line-height: 1.5; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateX(4px)} to{opacity:1;transform:translateX(0)} }
+  .log-t { color: var(--text3); flex-shrink: 0; }
+  .log-m { color: var(--text2); }
+  .log-m.c1 { color: var(--c1); }
+  .log-m.c2 { color: var(--c2); }
+  .log-m.c3 { color: var(--c3); }
+</style>
+</head>
+<body>
+<div id="welcome-overlay" style="
+    position: fixed; inset: 0; z-index: 9999;
+    background: radial-gradient(circle at center, #111418, #0a0c0f);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; font-family: 'Rajdhani', sans-serif;
+">
+    <div style="width: 80px; height: 80px; background: #00e5a0; border-radius: 15px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; box-shadow: 0 0 30px rgba(0,229,160,0.3);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" style="width: 45px; height: 45px;">
+            <rect x="1" y="8" width="22" height="12" rx="3"/><path d="M5 8V6a2 2 0 012-2h10a2 2 0 012 2v2"/><circle cx="7" cy="20" r="2"/><circle cx="17" cy="20" r="2"/>
+        </svg>
+    </div>
+
+    <h1 style="color: #fff; font-size: 32px; letter-spacing: 2px; margin-bottom: 8px;">HELLO VIT STUDENTS</h1>
+    <p style="color: #6a8098; font-family: 'Share Tech Mono', monospace; font-size: 14px; margin-bottom: 40px; letter-spacing: 1px;">
+        WELCOME TO THE EDGE-FOG SHUTTLE TRACKER
+    </p>
+
+    <button onclick="enterDashboard()" style="
+        padding: 14px 40px; background: transparent; border: 1px solid #00e5a0;
+        color: #00e5a0; font-family: 'Share Tech Mono', monospace; font-size: 16px;
+        font-weight: bold; cursor: pointer; border-radius: 4px; transition: all 0.3s;
+        text-transform: uppercase; letter-spacing: 2px;
+    " onmouseover="this.style.background='rgba(0,229,160,0.1)'" onmouseout="this.style.background='transparent'">
+        [ START TRACKING ]
+    </button>
+</div>
+
+<script>
+    function enterDashboard() {
+        const overlay = document.getElementById('welcome-overlay');
+        overlay.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
+        overlay.style.opacity = '0';
+        overlay.style.transform = 'scale(1.1)';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 800);
+    }
+</script>
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="1" y="8" width="22" height="12" rx="3"/>
+        <path d="M5 8V6a2 2 0 012-2h10a2 2 0 012 2v2"/>
+        <circle cx="7" cy="20" r="2"/><circle cx="17" cy="20" r="2"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-title">CAMPUS SHUTTLE TRACKER</div>
+      <div class="logo-sub">VIT Bangalore · Edge-Fog Architecture</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-pill" id="conn-pill">
+      <div class="dot"></div>
+      <span id="conn-label">CONNECTING</span>
+    </div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<div class="main">
+  <div class="left">
+
+    <div class="loc-bar">
+      <div class="loc-label">Your location</div>
+      <div class="select-wrap">
+        <select id="user-loc" onchange="onLocationChange()">
+          <option value="">— Pick your stop —</option>
+          <option value="SMV">SMV</option>
+          <option value="MB">MB</option>
+          <option value="TT">TT</option>
+          <option value="PRP">PRP</option>
+          <option value="SJT">SJT</option>
+          <option value="MGB">MGB</option>
+          <option value="ALM">ALM</option>
+          <option value="CDMM">CDMM</option>
+          <option value="GH_A">GH_A</option>
+          <option value="BH_A">BH_A</option>
+        </select>
+      </div>
+      <div class="loc-hint" id="loc-hint">Select your stop to see ETAs</div>
+    </div>
+
+    <div class="map-section">
+      <div class="section-tag">Live Campus Map</div>
+      <svg id="campus-map" viewBox="0 0 700 310" preserveAspectRatio="xMidYMid meet">
+        <path fill="none" stroke="#1f2730" stroke-width="3" stroke-dasharray="6 4"
+          d="M80,155 L180,225 L280,255 L380,225 L500,225 L580,155 L500,85 L380,55 L280,55 L180,85 Z"/>
+        <g id="stops-g"></g>
+        <g id="shuttles-g"></g>
+      </svg>
+    </div>
+
+    <div class="perf-section">
+      <div class="section-tag">Performance: Cloud-only vs Fog+Edge</div>
+      <canvas id="perf-canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="cards-section">
+      <div class="section-tag" style="margin-bottom:12px;">Fleet Status &amp; ETA to You</div>
+      <div id="cards"></div>
+    </div>
+    <div class="log-section">
+      <div class="log-title">// Event Log</div>
+      <div class="log-entries" id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const CAMPUS_BLOCKS = {
+  "SMV": [12.9692, 79.1559], "MB": [12.9710, 79.1580],
+  "TT": [12.9725, 79.1600], "PRP": [12.9740, 79.1620],
+  "SJT": [12.9755, 79.1640], "MGB": [12.9730, 79.1660],
+  "ALM": [12.9715, 79.1680], "CDMM": [12.9695, 79.1700],
+  "GH_A": [12.9675, 79.1685], "BH_A": [12.9660, 79.1660]
+};
+
+const STOPS = {
+  SMV: {x:80, y:155}, MB: {x:180, y:225}, TT: {x:280, y:255},
+  PRP: {x:380, y:225}, SJT: {x:500, y:225}, MGB: {x:580, y:155},
+  ALM: {x:500, y:85}, CDMM: {x:380, y:55}, GH_A: {x:280, y:55},
+  BH_A: {x:180, y:85},
+};
+
+// Ordered route used for stop rendering + shuttle destination calculations in the UI.
+const ROUTE = ["SMV", "MB", "TT", "PRP", "SJT", "MGB", "ALM", "CDMM", "GH_A", "BH_A"];
+
+// Updated boundaries for VIT coordinates
+function gpsToSvg(lat, lon) {
+  // Broaden these so every point in ROUTE_COORDS fits inside the box
+  const latMin = 12.9650, latMax = 12.9770; 
+  const lonMin = 79.1540, lonMax = 79.1720;
+  
+  const x = ((lon - lonMin) / (lonMax - lonMin)) * 800;
+  // Flip Y because SVG 0 is at the top
+  const y = 600 - (((lat - latMin) / (latMax - latMin)) * 600);
+  return { x, y };
+}
+
+// Called every frame — lerps each shuttle slowly toward its GPS target
+// Updated Animation Loop for a realistic cruising speed
+function animateLoop() {
+  let moved = false;
+  for (const id in smooth) {
+    const s = smooth[id];
+    const dx = s.tx - s.cx;
+    const dy = s.ty - s.cy;
+
+    // Small movements can be visually lost if the epsilon is too high; lower it
+    // so all shuttles keep animating as targets update.
+    if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+      // 0.003 is extremely slow and smooth
+      s.cx += dx * 0.01; 
+      s.cy += dy * 0.01;
+      moved = true;
+    }
+  }
+  if (moved) redrawShuttles();
+  requestAnimationFrame(animateLoop);
+}
+
+function redrawShuttles() {
+  const g = document.getElementById('shuttles-g');
+  while (g.firstChild) g.removeChild(g.firstChild);
+
+  for (const id in smooth) {
+    const {cx, cy, tx, ty} = smooth[id];
+    const baseColor = COLORS[id] || '#fff';
+
+    // Logic: If current position is very close to target GPS, the shuttle is "Stopped"
+    const isStopped = Math.abs(cx - tx) < 1.5 && Math.abs(cy - ty) < 1.5;
+    
+    // 1. Arrival Aura (Pulsing glow if stopped)
+    const glow = document.createElementNS(ns, 'circle');
+    glow.setAttribute('cx', cx);
+    glow.setAttribute('cy', cy);
+    glow.setAttribute('r', isStopped ? '24' : '18'); // Larger glow when waiting
+    glow.setAttribute('fill', isStopped ? '#ffd166' : baseColor);
+    glow.setAttribute('fill-opacity', isStopped ? '0.15' : '0.07');
+    if (isStopped) {
+        // Simple CSS injection for the pulse effect
+        glow.style.transition = 'all 0.5s ease-in-out';
+        glow.innerHTML = `<animate attributeName="r" values="20;26;20" dur="2s" repeatCount="indefinite" />`;
+    }
+    g.appendChild(glow);
+
+    // 2. Shuttle Body (Changes to yellow when waiting)
+    const body = document.createElementNS(ns, 'rect');
+    body.setAttribute('x', cx - 11);
+    body.setAttribute('y', cy - 7);
+    body.setAttribute('width', '22');
+    body.setAttribute('height', '14');
+    body.setAttribute('rx', '3');
+    body.setAttribute('fill', isStopped ? '#ffd166' : baseColor);
+    body.setAttribute('stroke', isStopped ? '#000' : 'none');
+    body.setAttribute('stroke-width', '0.5');
+    g.appendChild(body);
+
+    // 3. ID Label
+    const lbl = document.createElementNS(ns, 'text');
+    lbl.setAttribute('x', cx);
+    lbl.setAttribute('y', cy + 1);
+    lbl.setAttribute('text-anchor', 'middle');
+    lbl.setAttribute('dominant-baseline', 'central');
+    lbl.setAttribute('font-family', "'Share Tech Mono',monospace");
+    lbl.setAttribute('font-size', '7');
+    lbl.setAttribute('fill', '#000');
+    lbl.setAttribute('font-weight', '700');
+    lbl.textContent = id.replace('SHUTTLE_', 'S');
+    g.appendChild(lbl);
+
+    // 4. Status Indicator (The small dot on the corner)
+    const pd = document.createElementNS(ns, 'circle');
+    pd.setAttribute('cx', cx + 12);
+    pd.setAttribute('cy', cy - 8);
+    pd.setAttribute('r', '3.5');
+    pd.setAttribute('fill', isStopped ? '#ffd166' : baseColor);
+    pd.setAttribute('stroke', '#0a0c0f');
+    pd.setAttribute('stroke-width', '1');
+    g.appendChild(pd);
+  }
+}
+
+function drawStops() {
+  const g = document.getElementById('stops-g');
+  ROUTE.forEach((id, i) => {
+    const s = STOPS[id];
+
+    const ring = document.createElementNS(ns, 'circle');
+    ring.setAttribute('cx', s.x); ring.setAttribute('cy', s.y);
+    ring.setAttribute('r', '14'); ring.setAttribute('fill', 'none');
+    ring.setAttribute('stroke', '#2a3540'); ring.setAttribute('stroke-width', '1');
+    g.appendChild(ring);
+
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', s.x); dot.setAttribute('cy', s.y);
+    dot.setAttribute('r', '8'); dot.setAttribute('fill', '#1a2230');
+    dot.setAttribute('stroke', '#3a5068'); dot.setAttribute('stroke-width', '1.5');
+    dot.setAttribute('id', `stop-${id}`);
+    g.appendChild(dot);
+
+    const num = document.createElementNS(ns, 'text');
+    num.setAttribute('x', s.x); num.setAttribute('y', s.y);
+    num.setAttribute('text-anchor', 'middle');
+    num.setAttribute('dominant-baseline', 'central');
+    num.setAttribute('font-family', "'Share Tech Mono',monospace");
+    num.setAttribute('font-size', '7'); num.setAttribute('fill', '#6a8098');
+    num.textContent = String(i + 1).padStart(2, '0');
+    g.appendChild(num);
+
+    const lbl = document.createElementNS(ns, 'text');
+    const ly = s.y < 120 ? s.y - 23 : s.y + 25;
+    lbl.setAttribute('x', s.x); lbl.setAttribute('y', ly);
+    lbl.setAttribute('text-anchor', 'middle');
+    lbl.setAttribute('font-family', "'Rajdhani',sans-serif");
+    lbl.setAttribute('font-size', '11'); lbl.setAttribute('font-weight', '600');
+    lbl.setAttribute('fill', '#5a7088'); lbl.setAttribute('letter-spacing', '0.06em');
+    lbl.setAttribute('id', `lbl-${id}`);
+    lbl.textContent = id;
+    g.appendChild(lbl);
+  });
+}
+
+function highlightUserStop(stopId) {
+  ROUTE.forEach(id => {
+    const el = document.getElementById(`stop-${id}`);
+    const lb = document.getElementById(`lbl-${id}`);
+    if (!el) return;
+    if (id === stopId) {
+      el.setAttribute('fill', '#ffd166');
+      el.setAttribute('stroke', '#ffd166');
+      el.setAttribute('fill-opacity', '0.4');
+      if (lb) lb.setAttribute('fill', '#ffd166');
+    } else {
+      el.setAttribute('fill', '#1a2230');
+      el.setAttribute('stroke', '#3a5068');
+      el.setAttribute('fill-opacity', '1');
+      if (lb) lb.setAttribute('fill', '#5a7088');
+    }
+  });
+}
+
+function renderCards(data, userLoc) {
+  const container = document.getElementById('cards');
+  container.innerHTML = '';
+  
+  // Average speed in meters per second (approx 20 km/h)
+  const AVG_SPEED = 5.5; 
+
+  ['SHUTTLE_01', 'SHUTTLE_02', 'SHUTTLE_03'].forEach((id, i) => {
+    const info = data[id];
+    const color = COLORS[id];
+    const cls = COLOR_CLASS[id];
+    const card = document.createElement('div');
+    card.className = `shuttle-card ${cls}`;
+
+    if (!info) {
+      card.innerHTML = `<div class="no-signal">Establishing Edge Link for ${id}...</div>`;
+      container.appendChild(card);
+      return;
+    }
+
+    // 1. IMPROVED STATIONARY CHECK
+    // If the icon is barely moving (within 1.5 SVG units), mark as stopped.
+    const s = smooth[id];
+    const isStationary = s && Math.abs(s.cx - s.tx) < 1.0 && Math.abs(s.cy - s.ty) < 1.0;
+    
+    // 2. FORCE SYNC STATUS
+    // We prioritize ui_current_block because that is calculated in real-time 
+    // by the Map's snap-to-route logic in fetchAndUpdate().
+    const uiBlock = info.ui_current_block || info.current_block || "Unknown";
+    
+    // Logic: If the bus is physically at the user's selected stop, show "Arrived"
+    let currentPosText = isStationary
+      ? `Stopped at <b style="color:#ffd166">${uiBlock}</b>`
+      : `Moving past <b style="color:#fff">${uiBlock}</b>`;
+
+    if (userLoc && uiBlock === userLoc && isStationary) {
+       currentPosText = `<b style="color:var(--accent)">Arrived at your stop</b>`;
+    }
+
+    // 3. ETA & DISTANCE
+    const totalSeconds = info.eta_seconds || 0;
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    const etaDisplay = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    const distanceMeters = Math.round(totalSeconds * AVG_SPEED);
+    
+    const etaColor = totalSeconds < 60 ? 'var(--accent)' : totalSeconds < 180 ? 'var(--warn)' : 'var(--accent3)';
+
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-dot" style="background:${isStationary ? '#ffd166' : color}; box-shadow: ${isStationary ? '0 0 10px #ffd166' : 'none'}"></div>
+        <div class="card-id" style="font-weight:bold">${id}</div>
+        <div class="card-loc" style="font-size: 11px; margin-left: auto;">${currentPosText}</div>
+      </div>
+
+      <div class="card-eta-row" style="padding: 10px 12px; display: flex; align-items: center;">
+        <div style="flex: 1;">
+          <div class="loc-label" style="margin-bottom: 2px; font-size: 9px; letter-spacing: 0.5px;">ETA TO YOUR STOP</div>
+          <div class="eta-big" style="color:${userLoc ? etaColor : 'var(--text3)'}; font-size: 28px; font-weight: 800; font-family: var(--mono);">
+            ${userLoc ? (totalSeconds <= 5 && isStationary ? "NOW" : etaDisplay) : '--'}
+          </div>
+        </div>
+        
+        ${userLoc && totalSeconds > 0 ? `
+        <div style="text-align: right;">
+          <div class="loc-label" style="margin-bottom: 2px; font-size: 9px;">DISTANCE</div>
+          <div style="font-family: var(--mono); color: #fff; font-size: 18px;">${distanceMeters}<span style="font-size: 10px; color: var(--text2); margin-left: 2px;">m</span></div>
+        </div>
+        ` : ''}
+      </div>
+
+      <div class="eta-sub" style="border-top: 1px solid rgba(255,255,255,0.05); padding: 8px 12px; font-size: 10px; color: var(--text2);">
+        ${userLoc 
+          ? `Tracking to <span style="color:var(--accent)">${userLoc}</span> • Next: ${info.ui_next_stop || "Terminal"}` 
+          : `Select a location above to see real-time ETAs.`}
+      </div>`;
+    
+    container.appendChild(card);
+  });
+}
+
+function addLog(msg, cls) {
+  const box = document.getElementById('log');
+  const t = new Date().toTimeString().slice(0, 8);
+  const e = document.createElement('div');
+  e.className = 'log-entry';
+  e.innerHTML = `<span class="log-t">${t}</span><span class="log-m ${cls || ''}">${msg}</span>`;
+  box.prepend(e);
+  while (box.children.length > 60) box.removeChild(box.lastChild);
+}
+
+// Ensure these are at the top of your script
+let smooth = {}; 
+// Selected stop (dropdown). Keep it declared so fetchAndUpdate doesn't throw before user interaction.
+let userLoc = '';
+const ns = "http://www.w3.org/2000/svg";
+const COLORS = { "SHUTTLE_01": "#00e5a0", "SHUTTLE_02": "#0099ff", "SHUTTLE_03": "#ff6b35" };
+const COLOR_CLASS = { "SHUTTLE_01": "c1", "SHUTTLE_02": "c2", "SHUTTLE_03": "c3" };
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function projectPointToSegment(px, py, ax, ay, bx, by) {
+  const vx = bx - ax, vy = by - ay;
+  const wx = px - ax, wy = py - ay;
+  const len2 = vx * vx + vy * vy;
+  let t = len2 > 0 ? (wx * vx + wy * vy) / len2 : 0;
+  t = clamp(t, 0, 1);
+  return { x: ax + vx * t, y: ay + vy * t, t };
+}
+
+function closestRouteProjection(rawPos) {
+  // Find closest projection onto any ROUTE segment (i -> i+1).
+  let best = null;
+  for (let i = 0; i < ROUTE.length; i++) {
+    const from = ROUTE[i];
+    const to = ROUTE[(i + 1) % ROUTE.length];
+    const a = STOPS[from], b = STOPS[to];
+    if (!a || !b) continue;
+    const p = projectPointToSegment(rawPos.x, rawPos.y, a.x, a.y, b.x, b.y);
+    const dx = rawPos.x - p.x, dy = rawPos.y - p.y;
+    const d2 = dx * dx + dy * dy;
+    if (!best || d2 < best.d2) best = { from, to, ...p, d2 };
+  }
+  return best;
+}
+
+async function fetchAndUpdate() {
+  try {
+    const res = await fetch('/shuttle_data');
+    if (!res.ok) throw new Error("Server Unreachable");
+    const data = await res.json();
+
+    for (const id in data) {
+      const info = data[id];
+      if (!info.latitude || !info.longitude) continue;
+
+      // 1. Convert GPS to Map (SVG) Coordinates
+      const rawPos = gpsToSvg(info.latitude, info.longitude);
+      let targetX = rawPos.x;
+      let targetY = rawPos.y;
+
+      // 2. Snap to Route & Sync Status Logic
+      const proj = closestRouteProjection(rawPos);
+      if (proj) {
+        // Snap the icon to stop centers visually
+        const SNAP_T = 0.04; 
+        if (proj.t <= SNAP_T) {
+          targetX = STOPS[proj.from].x;
+          targetY = STOPS[proj.from].y;
+        } else if (proj.t >= 1 - SNAP_T) {
+          targetX = STOPS[proj.to].x;
+          targetY = STOPS[proj.to].y;
+        } else {
+          targetX = proj.x;
+          targetY = proj.y;
+        }
+
+        /** * THE SYNC FIX: 
+         * We update the block name at 50% (proj.t >= 0.5).
+         * This ensures the card label flips to the next building 
+         * the exact moment the icon passes the midpoint on the map.
+         **/
+        info.ui_current_block = proj.t >= 0.5 ? proj.to : proj.from;
+        info.ui_next_stop = proj.to;
+      } else {
+        // Fallback if projection fails
+        info.ui_current_block = info.current_block;
+      }
+
+      // 3. Update the Smoothing (Lerp) Object
+      if (!smooth[id]) {
+        smooth[id] = {cx: targetX, cy: targetY, tx: targetX, ty: targetY};
+      } else {
+        smooth[id].tx = targetX;
+        smooth[id].ty = targetY;
+      }
+      
+      // 4. Fetch Real-time ETA if user selected a stop
+      if (userLoc) {
+        try {
+          const r = await fetch(`/shuttle_eta?shuttle_id=${id}&destination=${userLoc}`);
+          const d = await r.json();
+          info.eta_seconds = d.eta_seconds;
+        } catch(e) { /* Silent fail for ETA */ }
+      }
+    }
+
+    // 5. Render Sidebar (Now using the synced ui_current_block)
+    renderCards(data, userLoc);
+    
+    // UI Status
+    document.getElementById('conn-pill').classList.remove('offline');
+    document.getElementById('conn-label').textContent = 'LIVE';
+  } catch (err) {
+    console.error("Fetch Error:", err);
+    document.getElementById('conn-pill').classList.add('offline');
+    document.getElementById('conn-label').textContent = 'OFFLINE';
+  }
+}
+
+function onLocationChange() {
+  userLoc = document.getElementById('user-loc').value;
+  const hint = document.getElementById('loc-hint');
+  if (userLoc) {
+    hint.textContent = `Showing ETAs to ${userLoc}`;
+    hint.style.color = 'var(--warn)';
+    highlightUserStop(userLoc);
+    addLog(`Location set: ${userLoc} — fetching ETAs...`);
+  } else {
+    hint.textContent = 'Select your stop to see ETAs';
+    hint.style.color = '';
+    highlightUserStop(null);
+  }
+  fetchAndUpdate();
+}
+
+function initChart() {
+  const ctx = document.getElementById('perf-canvas').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Latency (ms)', 'Packets/cycle'],
+      datasets: [
+        { label: 'Cloud Only', data: [910, 20], backgroundColor: 'rgba(255,107,53,0.65)', borderColor: '#ff6b35', borderWidth: 1, borderRadius: 3 },
+        { label: 'Fog + Edge Filter', data: [252, 8], backgroundColor: 'rgba(0,229,160,0.65)', borderColor: '#00e5a0', borderWidth: 1, borderRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 900 },
+      plugins: {
+        legend: { labels: { color: '#6a8098', font: { family: "'Share Tech Mono',monospace", size: 10 }, boxWidth: 10, padding: 8 } },
+        tooltip: { backgroundColor: '#181c22', borderColor: '#2a3540', borderWidth: 1, titleColor: '#c8d8e8', bodyColor: '#6a8098' }
+      },
+      scales: {
+        x: { grid: { color: '#1a2230' }, ticks: { color: '#6a8098', font: { family: "'Share Tech Mono',monospace", size: 10 } } },
+        y: { grid: { color: '#1a2230' }, ticks: { color: '#6a8098', font: { family: "'Share Tech Mono',monospace", size: 10 } }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toTimeString().slice(0, 8);
+}, 1000);
+
+drawStops();
+initChart();
+renderCards({}, '');
+addLog('Dashboard started. Select your stop to see live ETAs.');
+addLog('Edge filter: 55m threshold · Fog server: port 5000');
+
+requestAnimationFrame(animateLoop);
+fetchAndUpdate();
+setInterval(fetchAndUpdate, 5000);
+</script>
+</body>
+</html>
