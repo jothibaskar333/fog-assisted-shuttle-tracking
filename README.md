@@ -89,13 +89,4 @@ The proposed Edge-Fog architecture demonstrated significant improvements over a 
 * Predictive analytics using machine learning
 * Traffic-aware ETA estimation
 
-## Authors
 
-* Jothi Baskar
-* Shivani Sejal S D P
-* Jakka Anjali
-* Keerthana V
-
-## Academic Information
-
-Developed as part of the Fundamentals of Fog and Edge Computing (BCSE313L) course project.
